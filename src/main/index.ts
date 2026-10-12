@@ -59,6 +59,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('library:path', () => library.root)
   ipcMain.handle('library:reveal', () => shell.openPath(library.root))
   ipcMain.handle('notes:list', () => library.listNotes())
+  ipcMain.handle('notes:trash', () => library.listTrash())
   ipcMain.handle('notes:read', (_event, id: string) => library.readNote(id))
   ipcMain.handle('notes:save', (_event, note: Note) => library.writeNote(note))
   ipcMain.handle('notes:delete', (_event, id: string) => library.deleteNote(id))

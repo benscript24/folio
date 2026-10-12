@@ -9,6 +9,7 @@ export interface FolioBridge {
   libraryPath: () => Promise<string>
   revealLibrary: () => Promise<void>
   listNotes: () => Promise<NoteSummary[]>
+  listTrash: () => Promise<NoteSummary[]>
   readNote: (id: string) => Promise<Note>
   saveNote: (note: Note) => Promise<void>
   deleteNote: (id: string) => Promise<void>

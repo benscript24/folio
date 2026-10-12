@@ -22,6 +22,20 @@ function writeStored(notes: Note[]): void {
   localStorage.setItem(KEY, JSON.stringify(notes))
 }
 
+function activeNotes(notes: Note[]): NoteSummary[] {
+  return notes
+    .filter((note) => !note.deletedAt)
+    .map(summarize)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+function trashedNotes(notes: Note[]): NoteSummary[] {
+  return notes
+    .filter((note) => note.deletedAt)
+    .map(summarize)
+    .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0))
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -38,9 +52,10 @@ function browserLibrary() {
     },
     async reveal(): Promise<void> {},
     async list(): Promise<NoteSummary[]> {
-      return readStored()
-        .map(summarize)
-        .sort((a, b) => b.updatedAt - a.updatedAt)
+      return activeNotes(readStored())
+    },
+    async listTrash(): Promise<NoteSummary[]> {
+      return trashedNotes(readStored())
     },
     async read(id: string): Promise<Note> {
       const note = readStored().find((item) => item.id === id)
@@ -71,6 +86,7 @@ function electronLibrary(bridge: NonNullable<Window['folio']>) {
     location: () => bridge.libraryPath(),
     reveal: () => bridge.revealLibrary(),
     list: () => bridge.listNotes(),
+    listTrash: () => bridge.listTrash(),
     read: (id: string) => bridge.readNote(id),
     save: (note: Note) => bridge.saveNote(note),
     remove: (id: string) => bridge.deleteNote(id),

@@ -1,13 +1,14 @@
 import type { NoteSummary } from '../../../shared/note'
-import { ImageIcon, NotesIcon, SearchIcon } from './Icons'
+import { ImageIcon, NotesIcon, SearchIcon, TrashIcon } from './Icons'
 
-export type NoteFilter = 'all' | 'images'
+export type NoteFilter = 'all' | 'images' | 'trash'
 
 type Props = {
   notes: NoteSummary[]
   filter: NoteFilter
   query: string
   location: string
+  trashCount: number
   light: boolean
   onFilter: (filter: NoteFilter) => void
   onQuery: (value: string) => void
@@ -15,7 +16,18 @@ type Props = {
   onToggleTheme: () => void
 }
 
-export function Rail({ notes, filter, query, location, light, onFilter, onQuery, onReveal, onToggleTheme }: Props) {
+export function Rail({
+  notes,
+  filter,
+  query,
+  location,
+  trashCount,
+  light,
+  onFilter,
+  onQuery,
+  onReveal,
+  onToggleTheme
+}: Props) {
   const imageCount = notes.filter((note) => note.imageCount > 0).length
   const local = location !== 'Browser preview'
 
@@ -56,6 +68,15 @@ export function Rail({ notes, filter, query, location, light, onFilter, onQuery,
             <ImageIcon />
             <span>With images</span>
             <em>{imageCount}</em>
+          </button>
+          <button
+            type="button"
+            className={filter === 'trash' ? 'nav-item active' : 'nav-item'}
+            onClick={() => onFilter('trash')}
+          >
+            <TrashIcon />
+            <span>Trash</span>
+            <em>{trashCount}</em>
           </button>
         </nav>
       </div>

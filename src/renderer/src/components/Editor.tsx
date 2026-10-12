@@ -3,7 +3,7 @@ import type { Note, TextBlock } from '../../../shared/note'
 import { displayTitle, plainText, wordCount } from '../../../shared/note'
 import { insertImages, removeImage } from '../lib/blocks'
 import { library } from '../lib/library'
-import { FocusIcon, ImageIcon, LibraryIcon, TrashIcon } from './Icons'
+import { FocusIcon, ImageIcon, LibraryIcon, RestoreIcon, TrashIcon } from './Icons'
 
 type SaveState = 'saved' | 'saving' | 'error'
 
@@ -13,6 +13,7 @@ type Props = {
   focusMode: boolean
   onChange: (note: Note) => void
   onDelete: () => void
+  onRestore: () => void
   onToggleFocus: () => void
   titleRef: RefObject<HTMLTextAreaElement | null>
 }
@@ -87,6 +88,7 @@ export function Editor({
   focusMode,
   onChange,
   onDelete,
+  onRestore,
   onToggleFocus,
   titleRef
 }: Props) {
@@ -95,7 +97,7 @@ export function Editor({
   const cursorRef = useRef<{ id: string; cursor: number } | null>(null)
   const [focusId, setFocusId] = useState<string | null>(null)
   const [dropping, setDropping] = useState(false)
-  const [confirming, setConfirming] = useState(false)
+  const [confirming, setConfirming] = useState<'move' | 'forever' | null>(null)
   const [adding, setAdding] = useState(false)
   const inputId = useId()
   const words = wordCount(note)
@@ -123,7 +125,7 @@ export function Editor({
   }, [focusId, note])
 
   useEffect(() => {
-    setConfirming(false)
+    setConfirming(null)
   }, [note.id])
 
   function register(id: string, node: HTMLTextAreaElement | null) {
@@ -222,19 +224,40 @@ export function Editor({
             }}
           />
           <p className="meta">
-            <span>Updated {date}</span>
+            <span>{note.deletedAt ? 'In trash' : `Updated ${date}`}</span>
             <span aria-hidden="true">·</span>
             <span>{wordLabel}</span>
           </p>
           <div className={confirming ? 'tools confirm' : 'tools'}>
-            {confirming ? (
+            {confirming === 'move' ? (
               <>
-                <p>Delete this note?</p>
-                <button type="button" onClick={() => setConfirming(false)}>
+                <p>Move this note to trash?</p>
+                <button type="button" onClick={() => setConfirming(null)}>
+                  Keep
+                </button>
+                <button type="button" className="danger" onClick={onDelete}>
+                  Trash
+                </button>
+              </>
+            ) : confirming === 'forever' ? (
+              <>
+                <p>Delete this note forever?</p>
+                <button type="button" onClick={() => setConfirming(null)}>
                   Keep
                 </button>
                 <button type="button" className="danger" onClick={onDelete}>
                   Delete
+                </button>
+              </>
+            ) : note.deletedAt ? (
+              <>
+                <button type="button" onClick={onRestore}>
+                  <RestoreIcon />
+                  <span>Restore</span>
+                </button>
+                <button type="button" onClick={() => setConfirming('forever')} aria-label={`Delete ${displayTitle(note.title)} forever`}>
+                  <TrashIcon />
+                  <span>Delete forever</span>
                 </button>
               </>
             ) : (
@@ -247,9 +270,9 @@ export function Editor({
                   {focusMode ? <LibraryIcon /> : <FocusIcon />}
                   <span>{focusMode ? 'Library' : 'Focus'}</span>
                 </button>
-                <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete ${displayTitle(note.title)}`}>
+                <button type="button" onClick={() => setConfirming('move')} aria-label={`Move ${displayTitle(note.title)} to trash`}>
                   <TrashIcon />
-                  <span>Delete</span>
+                  <span>Trash</span>
                 </button>
               </>
             )}

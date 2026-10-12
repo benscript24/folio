@@ -31,7 +31,7 @@ function groupNotes(notes: NoteSummary[]): { label: string; notes: NoteSummary[]
     { label: 'Earlier', notes: [] as NoteSummary[] }
   ]
   for (const note of notes) {
-    const age = Math.round((today - startOfDay(note.updatedAt)) / 86_400_000)
+    const age = Math.round((today - startOfDay(note.deletedAt ?? note.updatedAt)) / 86_400_000)
     if (age <= 6) groups[0].notes.push(note)
     else if (age <= 13) groups[1].notes.push(note)
     else groups[2].notes.push(note)
@@ -43,27 +43,30 @@ export function Sidebar({ notes, activeId, query, filter, shortcut, onOpen, onCr
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return notes.filter((note) => {
-      if (filter === 'images' && note.imageCount === 0) return false
+      if (filter !== 'trash' && filter === 'images' && note.imageCount === 0) return false
       if (!needle) return true
       return `${note.title} ${note.excerpt}`.toLowerCase().includes(needle)
     })
   }, [notes, query, filter])
 
   const groups = useMemo(() => groupNotes(filtered), [filtered])
-  const heading = filter === 'images' ? 'With images' : 'All notes'
+  const heading = filter === 'trash' ? 'Trash' : filter === 'images' ? 'With images' : 'All notes'
+  const emptyLabel = query.trim() ? 'Nothing matches.' : filter === 'trash' ? 'Trash is empty.' : 'Nothing matches.'
 
   return (
     <section className="index" aria-label="Notes">
       <div className="col-head">
         <h1>{heading}</h1>
       </div>
-      <div className="index-tools">
-        <button className="new-note" onClick={onCreate}>
-          <PlusIcon />
-          <span>New note</span>
-          <kbd>{shortcut}</kbd>
-        </button>
-      </div>
+      {filter !== 'trash' && (
+        <div className="index-tools">
+          <button className="new-note" onClick={onCreate}>
+            <PlusIcon />
+            <span>New note</span>
+            <kbd>{shortcut}</kbd>
+          </button>
+        </div>
+      )}
       <div className="index-scroll" role="listbox" aria-label="Notes">
         {groups.map((group) => (
           <section key={group.label}>
@@ -77,7 +80,7 @@ export function Sidebar({ notes, activeId, query, filter, shortcut, onOpen, onCr
                 className={note.id === activeId ? 'note active' : 'note'}
                 onClick={() => onOpen(note.id)}
               >
-                <span className="note-when">{formatWhen(note.updatedAt)}</span>
+                <span className="note-when">{formatWhen(note.deletedAt ?? note.updatedAt)}</span>
                 <span className="note-title">{note.title}</span>
                 <span className="note-excerpt">{note.excerpt || 'Empty page'}</span>
                 {note.imageCount > 0 && (
@@ -89,7 +92,7 @@ export function Sidebar({ notes, activeId, query, filter, shortcut, onOpen, onCr
             ))}
           </section>
         ))}
-        {filtered.length === 0 && <p className="empty-search">Nothing matches.</p>}
+        {filtered.length === 0 && <p className="empty-search">{emptyLabel}</p>}
       </div>
     </section>
   )

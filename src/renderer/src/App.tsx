@@ -17,6 +17,7 @@ function readTheme(): 'light' | 'dark' {
 
 export function App() {
   const [notes, setNotes] = useState<NoteSummary[]>([])
+  const [trash, setTrash] = useState<NoteSummary[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Note | null>(null)
   const [query, setQuery] = useState('')
@@ -29,7 +30,7 @@ export function App() {
   const titleRef = useRef<HTMLTextAreaElement | null>(null)
   const focusTitle = useRef(false)
   const creating = useRef(false)
-  const [filter, setFilter] = useState<'all' | 'images'>('all')
+  const [filter, setFilter] = useState<'all' | 'images' | 'trash'>('all')
   const [theme, setTheme] = useState<'light' | 'dark'>(readTheme)
 
   const flush = useCallback(async () => {
@@ -64,6 +65,7 @@ export function App() {
     setDraft(note)
     draftRef.current = note
     setNotes((current) => current.map((item) => (item.id === note.id ? summarize(note) : item)))
+    setTrash((current) => current.map((item) => (item.id === note.id ? summarize(note) : item)))
     scheduleSave(note)
   }
 
@@ -89,9 +91,10 @@ export function App() {
   useEffect(() => {
     let live = true
     void (async () => {
-      const [list, where] = await Promise.all([library.list(), library.location()])
+      const [list, trashed, where] = await Promise.all([library.list(), library.listTrash(), library.location()])
       if (!live) return
       setNotes(list)
+      setTrash(trashed)
       setLocation(where)
       if (list[0]) {
         const note = await library.read(list[0].id)
@@ -137,17 +140,7 @@ export function App() {
     }
   }, [flush])
 
-  async function deleteNote() {
-    if (!draftRef.current) return
-    const id = draftRef.current.id
-    if (timer.current) {
-      window.clearTimeout(timer.current)
-      timer.current = null
-    }
-    draftRef.current = null
-    await library.remove(id)
-    const remaining = notes.filter((item) => item.id !== id)
-    setNotes(remaining)
+  async function openRemaining(remaining: NoteSummary[]) {
     if (remaining[0]) {
       const note = await library.read(remaining[0].id)
       setActiveId(note.id)
@@ -156,8 +149,69 @@ export function App() {
     } else {
       setActiveId(null)
       setDraft(null)
+      draftRef.current = null
     }
     setSaveState('saved')
+  }
+
+  async function moveToTrash() {
+    const current = draftRef.current
+    if (!current || current.deletedAt) return
+    if (timer.current) {
+      window.clearTimeout(timer.current)
+      timer.current = null
+    }
+    const trashed = { ...current, deletedAt: Date.now() }
+    draftRef.current = null
+    await library.save(trashed)
+    const summary = summarize(trashed)
+    const remaining = notes.filter((item) => item.id !== current.id)
+    setNotes(remaining)
+    setTrash((currentTrash) => [summary, ...currentTrash.filter((item) => item.id !== current.id)])
+    await openRemaining(remaining)
+  }
+
+  async function restoreNote() {
+    const current = draftRef.current
+    if (!current?.deletedAt) return
+    if (timer.current) {
+      window.clearTimeout(timer.current)
+      timer.current = null
+    }
+    const restored = { ...current, deletedAt: null, updatedAt: Date.now() }
+    await library.save(restored)
+    const summary = summarize(restored)
+    setTrash((currentTrash) => currentTrash.filter((item) => item.id !== current.id))
+    setNotes((currentNotes) => [summary, ...currentNotes.filter((item) => item.id !== current.id)])
+    setFilter('all')
+    setActiveId(restored.id)
+    setDraft(restored)
+    draftRef.current = restored
+    setSaveState('saved')
+  }
+
+  function showFilter(next: 'all' | 'images' | 'trash') {
+    setFilter(next)
+    const current = draftRef.current
+    if (next === 'trash') {
+      if (!current?.deletedAt) void openRemaining(trash)
+    } else if (current?.deletedAt) {
+      void openRemaining(notes)
+    }
+  }
+
+  async function deleteForever() {
+    const current = draftRef.current
+    if (!current) return
+    if (timer.current) {
+      window.clearTimeout(timer.current)
+      timer.current = null
+    }
+    draftRef.current = null
+    await library.remove(current.id)
+    const remaining = trash.filter((item) => item.id !== current.id)
+    setTrash(remaining)
+    await openRemaining(remaining)
   }
 
   useEffect(() => {
@@ -199,8 +253,9 @@ export function App() {
           filter={filter}
           query={query}
           location={location}
+          trashCount={trash.length}
           light={theme === 'light'}
-          onFilter={setFilter}
+          onFilter={showFilter}
           onQuery={setQuery}
           onReveal={() => {
             void library.reveal()
@@ -208,7 +263,7 @@ export function App() {
           onToggleTheme={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
         />
         <Sidebar
-          notes={notes}
+          notes={filter === 'trash' ? trash : notes}
           activeId={activeId}
           query={query}
           filter={filter}
@@ -230,18 +285,23 @@ export function App() {
               titleRef={titleRef}
               onChange={applyDraft}
               onDelete={() => {
-                void deleteNote()
+                void (draft?.deletedAt ? deleteForever() : moveToTrash())
+              }}
+              onRestore={() => {
+                void restoreNote()
               }}
               onToggleFocus={() => setFocusMode((value) => !value)}
             />
           ) : (
             <div className="empty">
               <p className="empty-kicker">Folio</p>
-              <h1>Nothing on the desk.</h1>
-              <p>A new note stays on this computer.</p>
-              <button className="new-note solitary" onClick={() => void createNote()}>
-                New note
-              </button>
+              <h1>{filter === 'trash' ? 'Trash is empty.' : 'Nothing on the desk.'}</h1>
+              <p>{filter === 'trash' ? 'Deleted notes stay here until you restore them.' : 'A new note stays on this computer.'}</p>
+              {filter !== 'trash' && (
+                <button className="new-note solitary" onClick={() => void createNote()}>
+                  New note
+                </button>
+              )}
             </div>
           )}
         </main>

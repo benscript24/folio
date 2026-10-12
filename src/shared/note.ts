@@ -18,6 +18,7 @@ export type Note = {
   title: string
   createdAt: number
   updatedAt: number
+  deletedAt?: number | null
   blocks: Block[]
 }
 
@@ -26,6 +27,7 @@ export type NoteSummary = {
   title: string
   excerpt: string
   updatedAt: number
+  deletedAt: number | null
   imageCount: number
 }
 
@@ -66,6 +68,7 @@ export function summarize(note: Note): NoteSummary {
     title: displayTitle(note.title),
     excerpt: excerptOf(note),
     updatedAt: note.updatedAt,
+    deletedAt: note.deletedAt ?? null,
     imageCount: imageCountOf(note)
   }
 }

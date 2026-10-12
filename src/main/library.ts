@@ -64,21 +64,34 @@ export function createLibrary(root: string) {
     return JSON.parse(raw) as Note
   }
 
-  async function listNotes(): Promise<NoteSummary[]> {
+  async function collectNotes(): Promise<Note[]> {
     await ensure()
     const entries = await readdir(notesDir(), { withFileTypes: true })
-    const summaries: NoteSummary[] = []
+    const notes: Note[] = []
     for (const entry of entries) {
       if (!entry.isDirectory() || !isSafeId(entry.name)) continue
       try {
-        const note = await readNote(entry.name)
-        summaries.push(summarize(note))
+        notes.push(await readNote(entry.name))
       } catch {
         continue
       }
     }
-    summaries.sort((a, b) => b.updatedAt - a.updatedAt)
-    return summaries
+    return notes
+  }
+
+  function toList(notes: Note[], trashed: boolean): NoteSummary[] {
+    return notes
+      .filter((note) => (trashed ? Boolean(note.deletedAt) : !note.deletedAt))
+      .map(summarize)
+      .sort((a, b) => (trashed ? (b.deletedAt ?? 0) - (a.deletedAt ?? 0) : b.updatedAt - a.updatedAt))
+  }
+
+  async function listNotes(): Promise<NoteSummary[]> {
+    return toList(await collectNotes(), false)
+  }
+
+  async function listTrash(): Promise<NoteSummary[]> {
+    return toList(await collectNotes(), true)
   }
 
   async function saveImage(noteId: string, name: string, bytes: Buffer): Promise<string> {
@@ -127,6 +140,7 @@ export function createLibrary(root: string) {
     root,
     ensure,
     listNotes,
+    listTrash,
     readNote,
     writeNote,
     saveImage,

@@ -52,6 +52,15 @@ export function LibraryIcon({ className }: IconProps) {
   )
 }
 
+export function RestoreIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3.2 8.2A4.8 4.8 0 1 0 4.6 4.2" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M3 3.2v3.1h3.1" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function TrashIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 16 16" aria-hidden="true">

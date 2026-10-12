@@ -6,6 +6,7 @@ const folio: FolioBridge = {
   libraryPath: () => ipcRenderer.invoke('library:path'),
   revealLibrary: () => ipcRenderer.invoke('library:reveal'),
   listNotes: () => ipcRenderer.invoke('notes:list'),
+  listTrash: () => ipcRenderer.invoke('notes:trash'),
   readNote: (id: string): Promise<Note> => ipcRenderer.invoke('notes:read', id),
   saveNote: (note: Note): Promise<void> => ipcRenderer.invoke('notes:save', note),
   deleteNote: (id: string): Promise<void> => ipcRenderer.invoke('notes:delete', id),
