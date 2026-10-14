@@ -1,5 +1,5 @@
 import type { NoteSummary } from '../../../shared/note'
-import { ImageIcon, NotesIcon, SearchIcon, TrashIcon } from './Icons'
+import { ImageIcon, NotesIcon, PanelHideIcon, SearchIcon, TrashIcon } from './Icons'
 
 export type NoteFilter = 'all' | 'images' | 'trash'
 
@@ -14,6 +14,7 @@ type Props = {
   onQuery: (value: string) => void
   onReveal: () => void
   onToggleTheme: () => void
+  onHide: () => void
 }
 
 export function Rail({
@@ -26,7 +27,8 @@ export function Rail({
   onFilter,
   onQuery,
   onReveal,
-  onToggleTheme
+  onToggleTheme,
+  onHide
 }: Props) {
   const imageCount = notes.filter((note) => note.imageCount > 0).length
   const local = location !== 'Browser preview'
@@ -38,6 +40,9 @@ export function Rail({
           <i className="mark" aria-hidden="true" />
           Folio
         </span>
+        <button type="button" className="panel-hide" onClick={onHide} aria-label="Hide navigation sidebar" title="Hide sidebar">
+          <PanelHideIcon />
+        </button>
       </div>
       <div className="rail-body">
         <label className="search">

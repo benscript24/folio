@@ -54,7 +54,8 @@ export function excerptOf(note: Pick<Note, 'blocks'>): string {
 }
 
 export function imageCountOf(note: Pick<Note, 'blocks'>): number {
-  return note.blocks.filter((block) => block.type === 'image').length
+  const embedded = plainText(note).match(/!\[[^\]]*\]\([^)]+\)/g)
+  return note.blocks.filter((block) => block.type === 'image').length + (embedded?.length ?? 0)
 }
 
 export function wordCount(note: Pick<Note, 'blocks'>): number {
@@ -74,13 +75,20 @@ export function summarize(note: Note): NoteSummary {
 }
 
 export function toMarkdown(note: Note): string {
-  const body = note.blocks
-    .map((block) => {
-      if (block.type === 'text') return block.text.trim()
-      return `![${block.name}](${block.src})`
-    })
-    .filter((part) => part.length > 0)
-    .join('\n\n')
+  const textBlocks = note.blocks.filter((block) => block.type === 'text')
+  const legacyImages = note.blocks.filter((block) => block.type === 'image')
+  let body = ''
+  if (textBlocks.length === 1 && legacyImages.length === 0) {
+    body = textBlocks[0].text.trim()
+  } else {
+    body = note.blocks
+      .map((block) => {
+        if (block.type === 'text') return block.text.trim()
+        return `![${block.name}](${block.src})`
+      })
+      .filter((part) => part.length > 0)
+      .join('\n\n')
+  }
 
   return `# ${displayTitle(note.title)}\n\n${body}\n`
 }

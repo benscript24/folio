@@ -1,20 +1,23 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react'
-import type { Note, TextBlock } from '../../../shared/note'
+import type { Note } from '../../../shared/note'
 import { displayTitle, plainText, wordCount } from '../../../shared/note'
-import { insertImages, removeImage } from '../lib/blocks'
-import { library } from '../lib/library'
 import { FocusIcon, ImageIcon, LibraryIcon, RestoreIcon, TrashIcon } from './Icons'
+import { RichEditor, type RichEditorHandle } from './RichEditor'
 
 type SaveState = 'saved' | 'saving' | 'error'
+
+type Panels = { rail: boolean; index: boolean }
 
 type Props = {
   note: Note
   saveState: SaveState
   focusMode: boolean
+  panels: Panels
   onChange: (note: Note) => void
   onDelete: () => void
   onRestore: () => void
-  onToggleFocus: () => void
+  onToggleLibrary: () => void
+  onSetPanel: (part: keyof Panels, open: boolean) => void
   titleRef: RefObject<HTMLTextAreaElement | null>
 }
 
@@ -22,151 +25,38 @@ function filesFromList(list: FileList | File[]): File[] {
   return [...list].filter((file) => file.type.startsWith('image/'))
 }
 
-function filesFromTransfer(data: DataTransfer): File[] {
-  const fromFiles = filesFromList(data.files)
-  if (fromFiles.length > 0) return fromFiles
-  const found: File[] = []
-  for (const item of data.items) {
-    if (item.kind === 'file' && item.type.startsWith('image/')) {
-      const file = item.getAsFile()
-      if (file) found.push(file)
-    }
-  }
-  return found
-}
-
-function Figure({
-  noteId,
-  src,
-  name,
-  onRemove
-}: {
-  noteId: string
-  src: string
-  name: string
-  onRemove: () => void
-}) {
-  const [url, setUrl] = useState('')
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    let live = true
-    setFailed(false)
-    library
-      .imageUrl(noteId, src)
-      .then((next) => {
-        if (live) setUrl(next)
-      })
-      .catch(() => {
-        if (live) setFailed(true)
-      })
-    return () => {
-      live = false
-    }
-  }, [noteId, src])
-
-  return (
-    <figure className="figure">
-      {url && !failed ? (
-        <img src={url} alt={name} />
-      ) : (
-        <div className="figure-pending">{failed ? 'Image unavailable' : ''}</div>
-      )}
-      <figcaption>
-        <span>{name || 'Image'}</span>
-        <button type="button" onClick={onRemove}>
-          Remove
-        </button>
-      </figcaption>
-    </figure>
-  )
-}
-
 export function Editor({
   note,
   saveState,
   focusMode,
+  panels,
   onChange,
   onDelete,
   onRestore,
-  onToggleFocus,
+  onToggleLibrary,
+  onSetPanel,
   titleRef
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
-  const areas = useRef(new Map<string, HTMLTextAreaElement>())
-  const cursorRef = useRef<{ id: string; cursor: number } | null>(null)
-  const [focusId, setFocusId] = useState<string | null>(null)
+  const richRef = useRef<RichEditorHandle>(null)
   const [dropping, setDropping] = useState(false)
   const [confirming, setConfirming] = useState<'move' | 'forever' | null>(null)
   const [adding, setAdding] = useState(false)
   const inputId = useId()
   const words = wordCount(note)
-  const firstText = note.blocks.find((block): block is TextBlock => block.type === 'text')
   const showPlaceholder = plainText(note).trim().length === 0
+  const readOnly = Boolean(note.deletedAt)
 
   useLayoutEffect(() => {
     if (titleRef.current) {
       titleRef.current.style.height = '0px'
       titleRef.current.style.height = `${titleRef.current.scrollHeight}px`
     }
-    for (const area of areas.current.values()) {
-      area.style.height = '0px'
-      area.style.height = `${area.scrollHeight}px`
-    }
-  }, [note, titleRef])
-
-  useLayoutEffect(() => {
-    if (!focusId) return
-    const area = areas.current.get(focusId)
-    area?.focus()
-    const length = area?.value.length ?? 0
-    area?.setSelectionRange(length, length)
-    setFocusId(null)
-  }, [focusId, note])
+  }, [note.title, titleRef])
 
   useEffect(() => {
     setConfirming(null)
   }, [note.id])
-
-  function register(id: string, node: HTMLTextAreaElement | null) {
-    if (node) areas.current.set(id, node)
-    else areas.current.delete(id)
-  }
-
-  function updateText(id: string, text: string) {
-    onChange({
-      ...note,
-      updatedAt: Date.now(),
-      blocks: note.blocks.map((block) => (block.id === id && block.type === 'text' ? { ...block, text } : block))
-    })
-  }
-
-  async function addFiles(files: File[], blockId: string | null, cursor: number | null) {
-    if (files.length === 0 || adding) return
-    setAdding(true)
-    try {
-      const images = []
-      for (const file of files) {
-        const src = await library.saveImage(note.id, file)
-        images.push({
-          id: crypto.randomUUID(),
-          type: 'image' as const,
-          src,
-          name: file.name || 'Image'
-        })
-      }
-      const next = insertImages(note, images, blockId, cursor)
-      onChange(next.note)
-      setFocusId(next.focusId)
-    } finally {
-      setAdding(false)
-      if (fileRef.current) fileRef.current.value = ''
-    }
-  }
-
-  function rememberCursor(id: string, area: HTMLTextAreaElement) {
-    cursorRef.current = { id, cursor: area.selectionStart ?? area.value.length }
-  }
 
   const date = new Date(note.updatedAt).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -179,6 +69,27 @@ export function Editor({
   return (
     <>
       <header className="editor-bar">
+        <div className="editor-bar-start">
+          <button
+            type="button"
+            className="panel-toggle"
+            onClick={onToggleLibrary}
+            aria-pressed={focusMode}
+            title={focusMode ? 'Show sidebars' : 'Hide sidebars for full view'}
+          >
+            {focusMode ? 'Sidebars' : 'Full view'}
+          </button>
+          {!panels.rail && panels.index && (
+            <button type="button" className="panel-toggle subtle" onClick={() => onSetPanel('rail', true)}>
+              Nav
+            </button>
+          )}
+          {panels.rail && !panels.index && (
+            <button type="button" className="panel-toggle subtle" onClick={() => onSetPanel('index', true)}>
+              Notes
+            </button>
+          )}
+        </div>
         <span className="privacy">On this computer</span>
         <span className={saveState === 'error' ? 'save-pill bad' : 'save-pill'} aria-live="polite">
           {saveLabel}
@@ -188,11 +99,13 @@ export function Editor({
         <div
           className={dropping ? 'sheet dropping' : 'sheet'}
           onDragEnter={(event) => {
+            if (readOnly) return
             if (![...event.dataTransfer.items].some((item) => item.type.startsWith('image/'))) return
             event.preventDefault()
             setDropping(true)
           }}
           onDragOver={(event) => {
+            if (readOnly) return
             if (![...event.dataTransfer.items].some((item) => item.type.startsWith('image/'))) return
             event.preventDefault()
             event.dataTransfer.dropEffect = 'copy'
@@ -202,10 +115,11 @@ export function Editor({
             setDropping(false)
           }}
           onDrop={(event) => {
+            if (readOnly) return
             event.preventDefault()
             setDropping(false)
-            const target = cursorRef.current
-            void addFiles(filesFromTransfer(event.dataTransfer), target?.id ?? null, target?.cursor ?? null)
+            const files = filesFromList(event.dataTransfer.files)
+            if (files.length > 0) richRef.current?.insertImages(files)
           }}
         >
           <textarea
@@ -216,11 +130,12 @@ export function Editor({
             placeholder="Untitled"
             aria-label="Title"
             spellCheck
+            readOnly={readOnly}
             onChange={(event) => onChange({ ...note, title: event.target.value, updatedAt: Date.now() })}
             onKeyDown={(event) => {
-              if (event.key !== 'Enter' || !firstText) return
+              if (event.key !== 'Enter' || readOnly) return
               event.preventDefault()
-              areas.current.get(firstText.id)?.focus()
+              document.querySelector<HTMLElement>('.prose-mirror')?.focus()
             }}
           />
           <p className="meta">
@@ -255,7 +170,11 @@ export function Editor({
                   <RestoreIcon />
                   <span>Restore</span>
                 </button>
-                <button type="button" onClick={() => setConfirming('forever')} aria-label={`Delete ${displayTitle(note.title)} forever`}>
+                <button
+                  type="button"
+                  onClick={() => setConfirming('forever')}
+                  aria-label={`Delete ${displayTitle(note.title)} forever`}
+                >
                   <TrashIcon />
                   <span>Delete forever</span>
                 </button>
@@ -266,60 +185,28 @@ export function Editor({
                   <ImageIcon />
                   <span>{adding ? 'Adding' : 'Image'}</span>
                 </button>
-                <button type="button" onClick={onToggleFocus} aria-pressed={focusMode}>
+                <button type="button" onClick={onToggleLibrary} aria-pressed={focusMode}>
                   {focusMode ? <LibraryIcon /> : <FocusIcon />}
-                  <span>{focusMode ? 'Library' : 'Focus'}</span>
+                  <span>{focusMode ? 'Sidebars' : 'Full view'}</span>
                 </button>
-                <button type="button" onClick={() => setConfirming('move')} aria-label={`Move ${displayTitle(note.title)} to trash`}>
+                <button
+                  type="button"
+                  onClick={() => setConfirming('move')}
+                  aria-label={`Move ${displayTitle(note.title)} to trash`}
+                >
                   <TrashIcon />
                   <span>Trash</span>
                 </button>
               </>
             )}
           </div>
-          <div
-            className="blocks"
-            onMouseDown={(event) => {
-              if (event.target !== event.currentTarget) return
-              const last = [...note.blocks].reverse().find((block) => block.type === 'text')
-              if (last) areas.current.get(last.id)?.focus()
-            }}
-          >
-            {note.blocks.map((block) =>
-              block.type === 'text' ? (
-                <textarea
-                  key={block.id}
-                  className="prose"
-                  rows={1}
-                  ref={(node) => register(block.id, node)}
-                  value={block.text}
-                  placeholder={showPlaceholder && block.id === firstText?.id ? 'Write…' : ''}
-                  aria-label="Note"
-                  spellCheck
-                  onChange={(event) => updateText(block.id, event.target.value)}
-                  onKeyUp={(event) => rememberCursor(block.id, event.currentTarget)}
-                  onClick={(event) => rememberCursor(block.id, event.currentTarget)}
-                  onPaste={(event) => {
-                    const files = filesFromTransfer(event.clipboardData)
-                    if (files.length === 0) return
-                    event.preventDefault()
-                    void addFiles(files, block.id, event.currentTarget.selectionStart)
-                  }}
-                />
-              ) : (
-                <Figure
-                  key={block.id}
-                  noteId={note.id}
-                  src={block.src}
-                  name={block.name}
-                  onRemove={() => {
-                    if (!block.src.startsWith('data:')) void library.deleteImage(note.id, block.src)
-                    onChange(removeImage(note, block.id))
-                  }}
-                />
-              )
-            )}
-          </div>
+          <RichEditor
+            ref={richRef}
+            note={note}
+            readOnly={readOnly}
+            placeholder={showPlaceholder ? 'Write…' : ''}
+            onChange={onChange}
+          />
         </div>
       </div>
       <input
@@ -330,8 +217,12 @@ export function Editor({
         accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
         multiple
         onChange={(event) => {
-          const target = cursorRef.current
-          void addFiles(filesFromList(event.target.files ?? []), target?.id ?? null, target?.cursor ?? null)
+          const files = filesFromList(event.target.files ?? [])
+          if (files.length === 0) return
+          setAdding(true)
+          richRef.current?.insertImages(files)
+          setAdding(false)
+          if (fileRef.current) fileRef.current.value = ''
         }}
       />
     </>

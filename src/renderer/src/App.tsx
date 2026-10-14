@@ -10,9 +10,22 @@ type SaveState = 'saved' | 'saving' | 'error'
 const shortcut = /Mac/i.test(navigator.platform) ? '⌘N' : 'Ctrl N'
 
 const THEME_KEY = 'folio.theme'
+const PANELS_KEY = 'folio.panels'
+
+type Panels = { rail: boolean; index: boolean }
 
 function readTheme(): 'light' | 'dark' {
   return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'
+}
+
+function readPanels(): Panels {
+  try {
+    const raw = localStorage.getItem(PANELS_KEY)
+    if (raw) return JSON.parse(raw) as Panels
+  } catch {
+    /* ignore */
+  }
+  return { rail: true, index: true }
 }
 
 export function App() {
@@ -22,7 +35,8 @@ export function App() {
   const [draft, setDraft] = useState<Note | null>(null)
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('')
-  const [focusMode, setFocusMode] = useState(false)
+  const [panels, setPanels] = useState<Panels>(readPanels)
+  const focusMode = !panels.rail && !panels.index
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [ready, setReady] = useState(false)
   const draftRef = useRef<Note | null>(null)
@@ -87,6 +101,21 @@ export function App() {
     localStorage.setItem(THEME_KEY, theme)
     void window.folio?.setTheme(theme)
   }, [theme])
+
+  useEffect(() => {
+    localStorage.setItem(PANELS_KEY, JSON.stringify(panels))
+  }, [panels])
+
+  function setPanel(part: keyof Panels, open: boolean) {
+    setPanels((current) => ({ ...current, [part]: open }))
+  }
+
+  const toggleLibrary = useCallback(() => {
+    setPanels((current) => {
+      const allOpen = current.rail && current.index
+      return allOpen ? { rail: false, index: false } : { rail: true, index: true }
+    })
+  }, [])
 
   useEffect(() => {
     let live = true
@@ -227,12 +256,12 @@ export function App() {
         void flush()
       } else if (key === '\\') {
         event.preventDefault()
-        setFocusMode((value) => !value)
+        toggleLibrary()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [createNote, flush])
+  }, [createNote, flush, toggleLibrary])
 
   if (!ready) {
     return (
@@ -245,36 +274,51 @@ export function App() {
     )
   }
 
+  const appClass = [
+    'app',
+    !panels.rail && 'is-rail-hidden',
+    !panels.index && 'is-index-hidden',
+    focusMode && 'is-focus'
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className={focusMode ? 'app is-focus' : 'app'}>
+    <div className={appClass}>
       <div className="workspace">
-        <Rail
-          notes={notes}
-          filter={filter}
-          query={query}
-          location={location}
-          trashCount={trash.length}
-          light={theme === 'light'}
-          onFilter={showFilter}
-          onQuery={setQuery}
-          onReveal={() => {
-            void library.reveal()
-          }}
-          onToggleTheme={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
-        />
-        <Sidebar
-          notes={filter === 'trash' ? trash : notes}
-          activeId={activeId}
-          query={query}
-          filter={filter}
-          shortcut={shortcut}
-          onOpen={(id) => {
-            void openNote(id)
-          }}
-          onCreate={() => {
-            void createNote()
-          }}
-        />
+        {panels.rail && (
+          <Rail
+            notes={notes}
+            filter={filter}
+            query={query}
+            location={location}
+            trashCount={trash.length}
+            light={theme === 'light'}
+            onFilter={showFilter}
+            onQuery={setQuery}
+            onReveal={() => {
+              void library.reveal()
+            }}
+            onToggleTheme={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
+            onHide={() => setPanel('rail', false)}
+          />
+        )}
+        {panels.index && (
+          <Sidebar
+            notes={filter === 'trash' ? trash : notes}
+            activeId={activeId}
+            query={query}
+            filter={filter}
+            shortcut={shortcut}
+            onOpen={(id) => {
+              void openNote(id)
+            }}
+            onCreate={() => {
+              void createNote()
+            }}
+            onHide={() => setPanel('index', false)}
+          />
+        )}
         <main className={draft ? 'stage' : 'stage bare'}>
           {draft ? (
             <Editor
@@ -290,7 +334,9 @@ export function App() {
               onRestore={() => {
                 void restoreNote()
               }}
-              onToggleFocus={() => setFocusMode((value) => !value)}
+              panels={panels}
+              onToggleLibrary={toggleLibrary}
+              onSetPanel={setPanel}
             />
           ) : (
             <div className="empty">

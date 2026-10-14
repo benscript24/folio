@@ -156,27 +156,83 @@ input:focus-visible {
   width: 332px;
 }
 
-.app.is-focus .rail,
-.app.is-focus .index {
-  display: none;
-}
-
 .col-head,
 .editor-bar {
   height: 48px;
   flex: none;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 0 16px;
   -webkit-app-region: drag;
   user-select: none;
 }
 
 .col-head h1 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -0.02em;
+}
+
+.panel-hide {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--faint);
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+}
+
+.panel-hide:hover {
+  background: var(--tool-hover);
+  color: var(--text);
+}
+
+.panel-hide svg {
+  width: 15px;
+  height: 15px;
+}
+
+.editor-bar-start {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.panel-toggle {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--tool);
+  color: var(--tool-ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.panel-toggle:hover {
+  background: var(--tool-hover);
+}
+
+.panel-toggle.subtle {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.app.is-focus .sheet {
+  width: min(920px, 100%);
+  margin-inline: auto;
 }
 
 .brand {
@@ -513,8 +569,19 @@ input:focus-visible {
 }
 
 .editor-bar {
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
   padding-right: 148px;
+}
+
+.editor-bar .privacy {
+  justify-self: center;
+}
+
+.editor-bar .save-pill {
+  justify-self: end;
 }
 
 .privacy {
@@ -656,6 +723,323 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.rich-editor {
+  margin-top: 22px;
+  min-height: 40vh;
+}
+
+.format-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 4px;
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--tool);
+}
+
+.format-tool {
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tool-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.format-tool:hover {
+  background: var(--tool-hover);
+}
+
+.format-tool.active {
+  background: var(--blue);
+  color: #fff;
+}
+
+.format-underline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.format-divider {
+  width: 1px;
+  height: 22px;
+  margin: 0 2px;
+  background: var(--line);
+}
+
+.format-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.format-size-step {
+  min-width: 32px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.format-size-step.grow {
+  font-size: 13px;
+}
+
+.format-size-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.format-size-select {
+  height: 28px;
+  min-width: 52px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--tool-ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.format-size-select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.format-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.format-group-label {
+  width: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tool-ink);
+  text-align: center;
+}
+
+.format-marker {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.format-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.format-swatch.active {
+  box-shadow: 0 0 0 2px var(--blue);
+}
+
+.format-color-input {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+
+.format-color-input input {
+  position: absolute;
+  inset: -6px;
+  width: calc(100% + 12px);
+  height: calc(100% + 12px);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.format-color-input.highlight {
+  background: linear-gradient(135deg, #fff3a3 50%, #fff 50%);
+}
+
+.rich-editor .tiptap,
+.prose-mirror {
+  outline: none;
+  min-height: 36vh;
+  font-size: 15.5px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--prose);
+  caret-color: var(--blue);
+  tab-size: 4;
+  white-space: pre-wrap;
+}
+
+.prose-mirror p.is-editor-empty:first-child::before {
+  color: var(--placeholder);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.prose-mirror h2 {
+  margin: 1.2em 0 0.4em;
+  font-size: 1.35em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.prose-mirror h3 {
+  margin: 1em 0 0.35em;
+  font-size: 1.12em;
+  font-weight: 620;
+  color: var(--text);
+}
+
+.prose-mirror ul,
+.prose-mirror ol {
+  margin: 0.5em 0;
+  padding-left: 1.4em;
+}
+
+.prose-mirror ul:not([data-type='taskList']) > li > p,
+.prose-mirror ol > li > p {
+  margin: 0;
+  padding: 0;
+  /* Row indent is on li (Tab), not the inner paragraph */
+  margin-left: 0 !important;
+}
+
+.prose-mirror ul[data-type='taskList'],
+.prose-mirror ul:has(> li[data-checked]) {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.35em 0;
+}
+
+.prose-mirror li[data-type='taskItem'],
+.prose-mirror li[data-checked] {
+  --task-line: calc(15.5px * 1.65);
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+  margin: 0.2em 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prose-mirror li[data-type='taskItem'] > label,
+.prose-mirror li[data-checked] > label {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  height: var(--task-line);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  cursor: pointer;
+}
+
+.prose-mirror li[data-type='taskItem'] > label span,
+.prose-mirror li[data-checked] > label span {
+  position: absolute;
+  inset: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  pointer-events: none;
+}
+
+.prose-mirror li[data-type='taskItem'] > label input[type='checkbox'],
+.prose-mirror li[data-checked] > label input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.prose-mirror li[data-type='taskItem'] > div,
+.prose-mirror li[data-checked] > div {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.prose-mirror ul[data-type='taskList'] ul[data-type='taskList'] {
+  padding-left: 1.4em;
+}
+
+.prose-mirror li[data-type='taskItem'] > div > p,
+.prose-mirror li[data-checked] > div > p {
+  margin: 0;
+  padding: 0;
+  line-height: 1.65;
+  /* Indent lives on the task row (li), not the inner paragraph */
+  margin-left: 0 !important;
+}
+
+.prose-mirror li[data-checked='true'] > div,
+.prose-mirror li[data-checked='true'] > div p {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--faint);
+}
+
+.prose-mirror blockquote {
+  margin: 0.75em 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--muted);
+}
+
+.prose-mirror a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-mirror u {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-mirror mark {
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.prose-mirror img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 12px 0;
+  border-radius: 10px;
 }
 
 .figure {

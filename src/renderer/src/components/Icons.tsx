@@ -44,6 +44,14 @@ export function FocusIcon({ className }: IconProps) {
   )
 }
 
+export function PanelHideIcon({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.5 3.5h5.5v9H2.5zM11 5.5 13.5 8 11 10.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function LibraryIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 16 16" aria-hidden="true">

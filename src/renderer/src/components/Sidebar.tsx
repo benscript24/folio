@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { NoteSummary } from '../../../shared/note'
 import type { NoteFilter } from './Rail'
-import { PlusIcon } from './Icons'
+import { PanelHideIcon, PlusIcon } from './Icons'
 
 type Props = {
   notes: NoteSummary[]
@@ -11,6 +11,7 @@ type Props = {
   shortcut: string
   onOpen: (id: string) => void
   onCreate: () => void
+  onHide: () => void
 }
 
 function startOfDay(time: number): number {
@@ -39,7 +40,16 @@ function groupNotes(notes: NoteSummary[]): { label: string; notes: NoteSummary[]
   return groups.filter((group) => group.notes.length > 0)
 }
 
-export function Sidebar({ notes, activeId, query, filter, shortcut, onOpen, onCreate }: Props) {
+export function Sidebar({
+  notes,
+  activeId,
+  query,
+  filter,
+  shortcut,
+  onOpen,
+  onCreate,
+  onHide
+}: Props) {
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return notes.filter((note) => {
@@ -57,6 +67,9 @@ export function Sidebar({ notes, activeId, query, filter, shortcut, onOpen, onCr
     <section className="index" aria-label="Notes">
       <div className="col-head">
         <h1>{heading}</h1>
+        <button type="button" className="panel-hide" onClick={onHide} aria-label="Hide notes list" title="Hide notes list">
+          <PanelHideIcon />
+        </button>
       </div>
       {filter !== 'trash' && (
         <div className="index-tools">
